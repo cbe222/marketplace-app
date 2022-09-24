@@ -140,8 +140,8 @@ export interface InterestRateCreditService {
 }
 
 export interface CreditLineService {
-  getLine: (props: GetCreditLinesProps) => Promise<CreditLine>;
-
+  getCreditLineById(id: Address): Promise<CreditLine | void>
+  
   addCredit: (props: AddCreditProps, dryRun: boolean) => Promise<TransactionResponse | PopulatedTransaction>;
   close: (id: BytesLike) => Promise<TransactionResponse>;
   withdraw: (id: Bytes, amount: BigNumber) => Promise<TransactionResponse>;

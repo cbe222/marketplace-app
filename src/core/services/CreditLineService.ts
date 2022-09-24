@@ -19,6 +19,7 @@ import {
 import { getConfig } from '@config';
 import { lineOfCreditABI } from '@services/contracts';
 import { getContract } from '@frameworks/ethers';
+import { getLine } from "@frameworks/gql";
 
 export class CreditLineServiceImpl implements CreditLineService {
   private graphUrl: string;
@@ -56,23 +57,9 @@ export class CreditLineServiceImpl implements CreditLineService {
     return await this.web3Provider.getSigner().getAddress();
   }
 
-  public async getCreditLines(): Promise<CreditLine[]> {
-    const result = await fetch(`${this.graphUrl}/subgraphs/name/LineOfCredit/loan`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `
-          query {
-            Borrower {
-              id          
-            }
-            Lender {
-              id          
-            }
-        }`,
-      }),
-    });
-    return await result.json();
+  public async getCreditLineById(id: Address): Promise<CreditLine | void> {
+    return (await getLine({ id })
+      .then(queryResponse => <CreditLine>queryResponse.data))
   }
 
   public async addCredit(props: AddCreditProps, dryRun: boolean): Promise<TransactionResponse | PopulatedTransaction> {
@@ -153,8 +140,7 @@ export class CreditLineServiceImpl implements CreditLineService {
         return await this.transactionService.populateTransaction(props);
       }
 
-      let tx;
-      tx = await this.transactionService.execute(props);
+      const tx = await this.transactionService.execute(props);
       await tx.wait();
       return tx;
     } catch (e) {

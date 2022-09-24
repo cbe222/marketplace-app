@@ -438,6 +438,14 @@ const getWithdrawAllowance = createAsyncThunk<
   return tokenAllowance;
 });
 
+const getLCreditLineById = createAsyncThunk<{ id: Address, creditLine: CreditLine | void }, Address, ThunkAPI>(
+  'lines/getById',
+  async (id, { extra }) => {
+    const { creditLineService } = extra.services;
+    return { id: id, creditLine: await creditLineService.getCreditLineById(id) }
+  }
+);
+
 /* -------------------------------------------------------------------------- */
 /*                                Subscriptions                               */
 /* -------------------------------------------------------------------------- */
@@ -464,6 +472,7 @@ const getWithdrawAllowance = createAsyncThunk<
 //     });
 //   }
 // );
+
 
 /* -------------------------------------------------------------------------- */
 /*                                   Exports                                  */
@@ -492,4 +501,5 @@ export const LinesActions = {
   clearLineStatus,
   getDepositAllowance,
   getWithdrawAllowance,
+  getLCreditLineById,
 };

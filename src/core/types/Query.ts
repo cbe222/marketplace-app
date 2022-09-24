@@ -1,4 +1,4 @@
-import { BaseCreditLine, CreditLinePage } from '@types';
+import { BaseCreditLine, CreditLine, CreditLinePage } from '@types';
 
 import { Address } from './Blockchain';
 
@@ -15,7 +15,7 @@ export interface QueryResponse {
   [key: string]: any;
 }
 
-type QueryResponseTypes = BaseCreditLine | BaseCreditLine[] | CreditLinePage | undefined;
+type QueryResponseTypes = BaseCreditLine | BaseCreditLine[] | CreditLinePage | CreditLine | undefined;
 
 /**
  * @typedef {object} Query
