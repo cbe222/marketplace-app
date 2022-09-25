@@ -3,7 +3,8 @@ import { BytesLike } from '@ethersproject/bytes/src.ts';
 import { Bytes, keccak256 } from 'ethers/lib/utils';
 
 import {
-  CreditLineService,
+  Credi
+  tLineService,
   YearnSdk,
   CreditLine,
   TransactionService,
@@ -15,8 +16,20 @@ import {
   ExecuteTransactionProps,
   AddCreditProps,
   Credit,
+  Network,
+  CreditLinePage,
+  GetLineProps,
+  GetLinesProps,
+  GetLinePageProps,
+  LineStatusTypes,
+  UNINITIALIZED_STATUS,
+  ACTIVE_STATUS,
+  LIQUIDATABLE_STATUS,
+  REPAID_STATUS,
+  INSOLVENT_STATUS,
 } from '@types';
 import { getConfig } from '@config';
+import { getLine, getLinePage, getLines, getUserLinePositions } from '@frameworks/gql';
 import { lineOfCreditABI } from '@services/contracts';
 import { getContract } from '@frameworks/ethers';
 import { getLine } from "@frameworks/gql";
@@ -200,5 +213,53 @@ export class CreditLineServiceImpl implements CreditLineService {
     const signer = await this.getSignerAddress();
     const credit = await this.contract.credits(id);
     return signer === credit.lender || signer === (await this.contract.borrower());
+  }
+
+  public async getLinePage(prop: GetLinePageProps): Promise<CreditLinePage> {
+    return {};
+  }
+  public async getUserLinePositions(): Promise<any> {
+    return null;
+  }
+  public async getExpectedTransactionOutcome(): Promise<any> {
+    return null;
+  }
+  public async approveDeposit(): Promise<any> {
+    return null;
+  }
+  // public async approveZapOu:  () => Promise<any>t: {
+  //   return null;
+  // };
+  // public async signPermi:  () => Promise<any>t: {
+  //   return null;
+  // };
+  public async deposit(): Promise<any> {
+    return null;
+  }
+  public async withdraw(): Promise<any> {
+    return null;
+  }
+  public async getDepositAllowance(): Promise<any> {
+    return null;
+  }
+  public async getWithdrawAllowance(): Promise<any> {
+    return null;
+  }
+
+  public mapStatusToString(status: number): LineStatusTypes {
+    switch (status) {
+      case 0:
+        return UNINITIALIZED_STATUS;
+      case 2:
+        return ACTIVE_STATUS;
+      case 3:
+        return LIQUIDATABLE_STATUS;
+      case 4:
+        return REPAID_STATUS;
+      case 5:
+        return INSOLVENT_STATUS;
+      default:
+        return 'no status';
+    }
   }
 }

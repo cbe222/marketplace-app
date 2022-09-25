@@ -1,15 +1,24 @@
-import { BaseCreditLine, CreditLine, CreditLinePage } from '@types';
+import {
+  BaseCreditLine,
+  CreditLinePage,
+  BaseToken,
+  Escrow,
+  LinePageSpigot,
+  LinePageCreditPosition,
+  DocumentNode,
+  QueryResponse,
+} from '@types';
 
 import { Address } from './Blockchain';
 
-export interface QueryVariables {
-  [key: string]: string;
+export interface QueryCreator<ArgType, ResponseType> {
+  (args: ArgType): QueryResponse<ResponseType>;
 }
 
-export interface QueryResponse {
+export interface QueryResponse<ResponseType> {
   loading: boolean;
   error?: string | object;
-  data?: QueryResponseTypes;
+  data?: ResponseType;
 
   // make backwards compatible with Apollos response type
   [key: string]: any;
@@ -27,7 +36,8 @@ export interface Query {
   variables?: QueryArgOption;
 }
 
-type QueryArgOption = GetLineArgs | GetLinePageArgs | GetLinesArgs | undefined;
+export type QueryArgOption = GetLineArgs | GetLinePageArgs | GetLinesArgs | undefined;
+
 // query props and return vals
 
 /**
@@ -73,4 +83,60 @@ export interface UseCreditLinesParams {
 
 export interface UseCreditLineParams {
   id: Address;
+}
+
+/*
+  Query Responses Types
+*/
+type QueryResponseTypes = BaseCreditLine | BaseCreditLine[] | CreditLinePage;
+
+export interface LineFrag {
+  id: string;
+  __typename: string;
+  timestamp: number;
+  // events with value
+  value?: number;
+  amount?: number;
+  // events with rates
+  drawnRate?: number;
+  facilityRate?: number;
+}
+
+export interface LineEventFrag {
+  __typename: string;
+  timestamp: number;
+  credit: {
+    id: string;
+  };
+  // events with value
+  value?: number;
+  amount?: number;
+  // events with rates
+  drawnRate?: number;
+  facilityRate?: number;
+}
+
+export interface GetLinePageResponse {
+  id: string;
+  end: number;
+  type: string;
+  start: number;
+  status: number;
+  borrower: Address;
+
+  credits?: LinePageCreditPosition &
+    {
+      // merge custom format w/ subgraph structure
+      events?: {
+        // cant use our type because we flatten structure for easier use
+        __typename: string;
+        timestamp: number;
+        credit: {
+          id: string;
+        };
+      }[];
+    }[];
+
+  escrow?: Escrow;
+  spigot?: LinePageSpigot;
 }

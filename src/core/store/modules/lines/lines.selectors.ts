@@ -4,312 +4,376 @@ import { memoize } from 'lodash';
 import {
   RootState,
   Status,
-  VaultView,
-  VaultActionsStatusMap,
-  Vault,
+  LineActionsStatusMap,
+  CreditLine,
   Token,
   Balance,
   AllowancesMap,
-  VaultPositionsMap,
-  VaultUserMetadata,
+  BaseCreditLine,
+  GetLinePageResponse,
+  UserPositionMetadata,
   Address,
-  GeneralVaultView,
+  CreditLinePage, // prev. GeneralVaultView, Super indepth data, CreditLinePage is most similar atm
+  PositionSummary,
+  UserPositionSummary,
+  Spigot,
+  CollateralEvent,
+  CreditLineEvents,
+  ModuleNames,
+  SPIGOT_MODULE_NAME,
+  ESCROW_MODULE_NAME,
+  LENDER_POSITION_ROLE,
 } from '@types';
 import { toBN } from '@utils';
 
 import { createToken } from '../tokens/tokens.selectors';
 
-import { initialVaultActionsStatusMap } from './vaults.reducer';
+import { initialLineActionsStatusMap } from './lines.reducer';
 
 /* ---------------------------------- State --------------------------------- */
-const selectVaultsState = (state: RootState) => state.vaults;
-const selectUserVaultsPositionsMap = (state: RootState) => state.vaults.user.userVaultsPositionsMap;
-const selectUserVaultsMetadataMap = (state: RootState) => state.vaults.user.userVaultsMetadataMap;
-const selectVaultsMap = (state: RootState) => state.vaults.vaultsMap;
-const selectVaultsAddresses = (state: RootState) => state.vaults.vaultsAddresses;
+const selectUserWallet = (state: RootState) => state.wallet.selectedAddress;
+const selectLinesState = (state: RootState) => state.lines;
+const selectUserLinesPositionsMap = (state: RootState) => state.lines.user.linePositions;
+// const selectUserLinesMetadataMap = (state: RootState) => state.lines.user.userLinesMetadataMap;
+const selectLinesMap = (state: RootState) => state.lines.linesMap;
+const selectLinesAddresses = (state: RootState) => Object.keys(state.lines.linesMap);
 const selectUserTokensMap = (state: RootState) => state.tokens.user.userTokensMap;
 const selectUserTokensAllowancesMap = (state: RootState) => state.tokens.user.userTokensAllowancesMap;
-const selectVaultsAllowancesMap = (state: RootState) => state.vaults.user.vaultsAllowancesMap;
+const selectLinesAllowancesMap = (state: RootState) => state.lines.user.lineAllowances;
 const selectTokensMap = (state: RootState) => state.tokens.tokensMap;
-const selectSelectedVaultAddress = (state: RootState) => state.vaults.selectedVaultAddress;
-const selectVaultsActionsStatusMap = (state: RootState) => state.vaults.statusMap.vaultsActionsStatusMap;
-const selectVaultsStatusMap = (state: RootState) => state.vaults.statusMap;
-const selectExpectedTxOutcome = (state: RootState) => state.vaults.transaction.expectedOutcome;
-const selectExpectedTxOutcomeStatus = (state: RootState) => state.vaults.statusMap.getExpectedTransactionOutcome;
-const selectUserVaultsSummary = (state: RootState) => state.vaults.user.userVaultsSummary;
+const selectSelectedLineAddress = (state: RootState) => state.lines.selectedLineAddress;
+const selectLinesActionsStatusMap = (state: RootState) => state.lines.statusMap.user.linesActionsStatusMap;
+const selectLinesStatusMap = (state: RootState) => state.lines.statusMap;
+// const selectExpectedTxOutcome = (state: RootState) => state.lines.transaction.expectedOutcome;
+// const selectExpectedTxOutcomeStatus = (state: RootState) => state.lines.statusMap.getExpectedTransactionOutcome;
+const selectUserLinesSummary = (state: RootState) => state.lines.user.linePositions;
 
-const selectGetVaultsStatus = (state: RootState) => state.vaults.statusMap.getVaults;
-const selectGetUserVaultsPositionsStatus = (state: RootState) => state.vaults.statusMap.user.getUserVaultsPositions;
+const selectGetLinesStatus = (state: RootState) => state.lines.statusMap.getLines;
+const selectGetUserLinesPositionsStatus = (state: RootState) => state.lines.statusMap.user.getUserLinePositions;
 
 /* ----------------------------- Main Selectors ----------------------------- */
-const selectVaults = createSelector(
-  [
-    selectVaultsMap,
-    selectVaultsAddresses,
-    selectTokensMap,
-    selectUserVaultsPositionsMap,
-    selectUserVaultsMetadataMap,
-    selectUserTokensMap,
-    selectVaultsAllowancesMap,
-    selectUserTokensAllowancesMap,
-  ],
-  (
-    vaultsMap,
-    vaultsAddresses,
-    tokensMap,
-    userVaultsPositionsMap,
-    userVaultsMetadataMap,
-    userTokensMap,
-    vaultsAllowancesMap, // NOTE: For now we are gonna get the allowance from TokenState.user.tokenAllowances[]
-    userTokensAllowancesMap
-  ) => {
-    const vaults = vaultsAddresses.map((address) => {
-      const vaultData = vaultsMap[address];
-      const tokenData = tokensMap[vaultData.tokenId];
-      const userTokenData = userTokensMap[vaultData.tokenId];
-      const tokenAllowancesMap = userTokensAllowancesMap[vaultData.token] ?? {};
-      const vaultAllowancesMap = userTokensAllowancesMap[address] ?? {};
-      return createVault({
-        vaultData,
-        tokenData,
-        userTokenData,
-        userVaultPositionsMap: userVaultsPositionsMap[address],
-        userVaultsMetadataMap: userVaultsMetadataMap[address],
-        vaultAllowancesMap,
-        tokenAllowancesMap,
-      });
-    });
+const selectLines = createSelector([selectLinesMap], (linesMap) => {
+  return Object.values(linesMap);
+});
 
-    vaults.sort((a, b) => {
-      return toBN(b.token.balance).minus(a.token.balance).toNumber();
-    });
-    return vaults;
+const selectLiveLines = createSelector([selectLines], (lines): CreditLine[] => {
+  return lines.filter((line: CreditLine) => line.end < Date.now() / 1000);
+});
+
+// Not needed yet. TODO: Select all past-term lines
+// const selectDeprecatedLines = createSelector([selectLines], (lines): PositionSummary[] => {
+//   const deprecatedLines = lines
+//     .filter((line) => line.hideIfNoDeposits)
+//     .map(({ token, ...rest }) => ({ token, ...rest }));
+//   return deprecatedLines.filter((line) => toBN(line.userDeposited).gt(0));
+// });
+
+const selectDepositedLines = createSelector(
+  [selectUserLinesPositionsMap, selectUserWallet],
+  (positions, wallet): UserPositionSummary[] => {
+    return Object.values(positions)
+      .filter((p) => p.lender === wallet)
+      .map((p) => ({
+        ...p,
+        role: LENDER_POSITION_ROLE,
+        available: p.deposit - p.principal,
+        amount: p.deposit,
+      }));
   }
 );
 
-const selectLiveVaults = createSelector([selectVaults], (vaults): GeneralVaultView[] => {
-  return vaults.filter((vault) => !vault.hideIfNoDeposits);
-});
-
-const selectDeprecatedVaults = createSelector([selectVaults], (vaults): VaultView[] => {
-  const deprecatedVaults = vaults
-    .filter((vault) => vault.hideIfNoDeposits)
-    .map(({ DEPOSIT, token, ...rest }) => ({ token, ...DEPOSIT, ...rest }));
-  return deprecatedVaults.filter((vault) => toBN(vault.userDeposited).gt(0));
-});
-
-const selectDepositedVaults = createSelector([selectLiveVaults], (vaults): VaultView[] => {
-  const depositVaults = vaults.map(({ DEPOSIT, token, ...rest }) => ({ token, ...DEPOSIT, ...rest }));
-  return depositVaults.filter((vault) => toBN(vault.userDeposited).gt(0));
-});
-
-const selectVaultsOpportunities = createSelector([selectLiveVaults], (vaults): VaultView[] => {
-  const depositVaults = vaults.map(({ DEPOSIT, token, ...rest }) => ({ token, ...DEPOSIT, ...rest }));
-  const opportunities = depositVaults.filter((vault) => toBN(vault.userDeposited).lte(0));
-  return opportunities;
-});
-
-const selectSelectedVaultActionsStatusMap = createSelector(
-  [selectVaultsActionsStatusMap, selectSelectedVaultAddress],
-  (vaultsActionsStatusMap, selectedVaultAddress): VaultActionsStatusMap => {
-    return selectedVaultAddress ? vaultsActionsStatusMap[selectedVaultAddress] : initialVaultActionsStatusMap;
+const selectSelectedLineActionsStatusMap = createSelector(
+  [selectLinesActionsStatusMap, selectSelectedLineAddress],
+  (linesActionsStatusMap, selectedLineAddress): LineActionsStatusMap => {
+    return selectedLineAddress ? linesActionsStatusMap[selectedLineAddress] : initialLineActionsStatusMap;
   }
 );
 
-const selectSummaryData = createSelector([selectUserVaultsSummary], (userVaultsSummary) => {
+const selectSummaryData = createSelector([selectUserLinesSummary], (userLinesSummary) => {
   return {
-    totalDeposits: userVaultsSummary?.holdings ?? '0',
-    totalEarnings: userVaultsSummary?.earnings ?? '0',
-    estYearlyYeild: userVaultsSummary?.estimatedYearlyYield ?? '0',
-    apy: userVaultsSummary?.grossApy.toString() ?? '0',
+    totalDeposits: userLinesSummary?.holdings ?? '0',
+    totalEarnings: userLinesSummary?.earnings ?? '0',
+    estYearlyYeild: userLinesSummary?.estimatedYearlyYield ?? '0',
+    apy: userLinesSummary?.grossApy.toString() ?? '0',
   };
 });
 
-const selectRecommendations = createSelector([selectLiveVaults], (vaults) => {
-  // const stableCoinsSymbols = ['DAI', 'USDC', 'USDT', 'sUSD'];
-  // const stableVaults: GeneralVaultView[] = [];
+const selectRecommendations = createSelector([selectLiveLines, selectLinesMap], (activeLines, linesMap) => {
+  const stableCoinSymbols = ['DAI', 'sUSD'];
+  const targetTokenSymbols = ['ETH'];
+  const stableLines: CreditLinePage[] = [];
+  const tokenLines: CreditLinePage[] = [];
   // stableCoinsSymbols.forEach((symbol) => {
-  //   const vault = vaults.find((vault) => vault.token.symbol === symbol);
-  //   if (!vault) return;
-  //   stableVaults.push(vault);
+  //   const line = lines.find((line) => line.token.symbol === symbol);
+  //   if (!line) return;
+  //   stableLines.push(line);
   // });
 
-  // let max = toBN('0');
-  // let stableVault: GeneralVaultView = stableVaults[0];
-  // stableVaults.forEach((vault) => {
-  //   if (max.gte(vault.apyData)) return;
-  //   max = toBN(vault.apyData);
-  //   stableVault = vault;
+  // targetTokenSymbols.forEach((symbol) => {
+  //   const line = lines.find((line) => line.token.symbol === symbol);
+  //   if (!line) return;
+  //   tokenLines.push(line);
   // });
 
-  // const derivativeVaults = differenceBy(vaults, stableVaults, 'address');
-
-  // derivativeVaults.sort((a, b) => {
+  // return [stableLine, derivativeLines[1], derivativeLines[0]].filter((item) => !!item);
+  // const sortedLines = [...lines].sort((a, b) => {
   //   return toBN(b.apyData).minus(a.apyData).toNumber();
   // });
 
-  // return [stableVault, derivativeVaults[1], derivativeVaults[0]].filter((item) => !!item);
-  const sortedVaults = [...vaults].sort((a, b) => {
-    return toBN(b.apyData).minus(a.apyData).toNumber();
-  });
-  return sortedVaults.slice(0, 3);
+  // return object with fields for categories
 });
 
-const selectVault = createSelector(
-  [
-    selectVaultsMap,
-    selectTokensMap,
-    selectUserVaultsPositionsMap,
-    selectUserVaultsMetadataMap,
-    selectUserTokensMap,
-    selectVaultsAllowancesMap,
-    selectUserTokensAllowancesMap,
-  ],
-  (
-    vaultsMap,
-    tokensMap,
-    userVaultsPositionsMap,
-    userVaultsMetadataMap,
-    userTokensMap,
-    vaultsAllowancesMap, // NOTE: For now we are gonna get the allowance from TokenState.user.tokenAllowances[]
-    userTokensAllowancesMap
-  ) =>
-    memoize((vaultAddress: string) => {
-      const vaultData = vaultsMap[vaultAddress];
-      if (!vaultData) return undefined;
-      const tokenData = tokensMap[vaultData.tokenId];
-      const userTokenData = userTokensMap[vaultData.tokenId];
-      const tokenAllowancesMap = userTokensAllowancesMap[vaultData.token] ?? {};
-      const vaultAllowancesMap = userTokensAllowancesMap[vaultAddress] ?? {};
-      return createVault({
-        vaultData,
-        tokenData,
-        userTokenData,
-        userVaultPositionsMap: userVaultsPositionsMap[vaultAddress],
-        userVaultsMetadataMap: userVaultsMetadataMap[vaultAddress],
-        vaultAllowancesMap,
-        tokenAllowancesMap,
-      });
-    })
+const selectLine = createSelector([selectLinesMap], (linesMap) =>
+  memoize((lineAddress: string) => linesMap[lineAddress])
 );
 
-const selectUnderlyingTokensAddresses = createSelector([selectVaultsMap], (vaults): Address[] => {
-  return Object.values(vaults).map((vault) => vault.tokenId);
+const selectUnderlyingTokensAddresses = createSelector([selectUserLinesPositionsMap], (lines): Address[] => {
+  return Object.values(lines).map((line) => line.token);
 });
 
 /* -------------------------------- Statuses -------------------------------- */
-const selectVaultsGeneralStatus = createSelector([selectVaultsStatusMap], (statusMap): Status => {
-  const loading = statusMap.getVaults.loading || statusMap.initiateSaveVaults.loading;
-  const error = statusMap.getVaults.error || statusMap.initiateSaveVaults.error;
+const selectLinesGeneralStatus = createSelector([selectLinesStatusMap], (statusMap): Status => {
+  const loading = statusMap.getLines.loading;
+  const error = statusMap.getLines.error;
   return { loading, error };
 });
 
-const selectSelectedVault = createSelector(
-  [selectVaults, selectSelectedVaultAddress],
-  (vaults, selectedVaultAddress) => {
-    if (!selectedVaultAddress) {
-      return undefined;
-    }
-    return vaults.find((vault) => vault.address === selectedVaultAddress);
+const selectSelectedLine = createSelector([selectLines, selectSelectedLineAddress], (lines, selectedLineAddress) => {
+  if (!selectedLineAddress) {
+    return undefined;
   }
-);
+  return lines.find((line) => line.id === selectedLineAddress);
+});
 
-const selectVaultsStatus = createSelector(
-  [selectGetVaultsStatus, selectGetUserVaultsPositionsStatus],
-  (getVaultsStatus, getUserVaultsPositionsStatus): Status => {
+const selectLinesStatus = createSelector(
+  [selectGetLinesStatus, selectGetUserLinesPositionsStatus],
+  (getLinesStatus, getUserLinesPositionsStatus): Status => {
     return {
-      loading: getVaultsStatus.loading || getUserVaultsPositionsStatus.loading,
-      error: getVaultsStatus.error || getUserVaultsPositionsStatus.error,
+      loading: getLinesStatus.loading || getUserLinesPositionsStatus.loading,
+      error: getLinesStatus.error || getUserLinesPositionsStatus.error,
     };
   }
 );
 
 /* --------------------------------- Helper --------------------------------- */
-interface CreateVaultProps {
-  vaultData: Vault;
-  tokenData: Token;
-  userTokenData: Balance;
-  tokenAllowancesMap: AllowancesMap;
-  userVaultPositionsMap: VaultPositionsMap;
-  userVaultsMetadataMap: VaultUserMetadata;
-  vaultAllowancesMap: AllowancesMap;
-}
+// interface CreateLineProps {
+//   lineData: BaseCreditLine;
+//   // tokenAllowancesMap: AllowancesMap;
+//   positions: { [key: string]: PositionSummary };
+//   // userLinesMetadataMap: UserPositionMetadata;
+//   lineAllowancesMap: AllowancesMap;
+// }
+// function createLine(props: CreateLineProps): CreditLine {
+//   const {
+//     lineData,
+//     // tokenAllowancesMap,
+//     lineAllowancesMap,
+//     positions,
+//     // userLinesMetadataMap,
+//   } = props;
 
-function createVault(props: CreateVaultProps): GeneralVaultView {
+//   return {
+//     ...lineData,
+//   };
+// }
+
+interface CreateLinePageProps {
+  lineData: GetLinePageResponse;
+  tokenAllowancesMap: AllowancesMap;
+  positions: { [key: string]: PositionSummary };
+  // userLinesMetadataMap: UserPositionMetadata;
+  lineAllowancesMap: AllowancesMap;
+}
+function createLinePage(props: CreateLinePageProps): CreditLinePage {
   const {
     tokenAllowancesMap,
-    tokenData,
-    userTokenData,
-    vaultData,
-    vaultAllowancesMap,
-    userVaultPositionsMap,
-    userVaultsMetadataMap,
+    lineData,
+    lineAllowancesMap,
+    positions,
+    // userLinesMetadataMap,
   } = props;
-  const vaultAddress = vaultData.address;
-  const currentAllowance = tokenAllowancesMap[vaultAddress] ?? '0';
+  const lineAddress = lineData.id;
+  const currentAllowance = tokenAllowancesMap[lineAddress] ?? '0';
 
-  return {
-    address: vaultData.address,
-    name: vaultData.name,
-    displayName: vaultData.metadata.displayName,
-    displayIcon: vaultData.metadata.displayIcon,
-    defaultDisplayToken: vaultData.metadata.defaultDisplayToken,
-    vaultBalance: vaultData.underlyingTokenBalance.amount,
-    decimals: vaultData.decimals,
-    symbol: vaultData.symbol,
-    vaultBalanceUsdc: vaultData.underlyingTokenBalance.amountUsdc,
-    depositLimit: vaultData.metadata.depositLimit ?? '0',
-    emergencyShutdown: vaultData.metadata.emergencyShutdown,
-    depositsDisabled: vaultData.metadata.depositsDisabled || vaultData.metadata.hideIfNoDeposits,
-    withdrawalsDisabled: vaultData.metadata.withdrawalsDisabled ?? false,
-    hideIfNoDeposits: vaultData.metadata.hideIfNoDeposits ?? false,
-    apyData: vaultData.metadata.apy?.net_apy.toString() ?? '0',
-    apyType: vaultData.metadata.apy?.type ?? '',
-    apyMetadata: vaultData.metadata.apy,
-    allowancesMap: vaultAllowancesMap ?? {},
-    approved: toBN(currentAllowance).gt(0),
-    pricePerShare: vaultData?.metadata.pricePerShare,
-    earned: userVaultsMetadataMap?.earned ?? '0',
-    strategies: vaultData.metadata.strategies?.strategiesMetadata ?? [],
-    historicalEarnings: vaultData.metadata.historicEarnings ?? [],
-    allowZapIn: !!vaultData.metadata.allowZapIn,
-    allowZapOut: !!vaultData.metadata.allowZapOut,
-    zapInWith: vaultData.metadata.zapInWith,
-    zapOutWith: vaultData.metadata.zapOutWith,
-    migrationAvailable: vaultData.metadata.migrationAvailable,
-    migrationContract: vaultData.metadata.migrationContract,
-    migrationTargetVault: vaultData.metadata.migrationTargetVault,
-    DEPOSIT: {
-      userBalance: userVaultPositionsMap?.DEPOSIT?.balance ?? '0',
-      userDeposited: userVaultPositionsMap?.DEPOSIT?.underlyingTokenBalance.amount ?? '0',
-      userDepositedUsdc: userVaultPositionsMap?.DEPOSIT?.underlyingTokenBalance.amountUsdc ?? '0',
-    },
-    token: createToken({ tokenData, userTokenData, allowancesMap: tokenAllowancesMap }),
+  console.log('get lines category res: ', lineAddress, lineData);
+  const { start, end, status, borrower, credits, spigot, escrow } = lineData;
+
+  // dreivative or aggregated data we need to compute and store while mapping position data
+
+  // position id and APY
+  const highestApy: [string, number] = ['', 0];
+  // aggregated revenue in USD by token across all spigots
+  const tokenRevenue: { [key: string]: number } = {};
+  const principal = 0;
+  const interest = 0;
+
+  //  all recent Spigot and Escrow events
+  let collateralEvents: CollateralEvent[] = [];
+  /**
+   * @function
+   * @name mergeCollateralEvents
+   * @desc - takes all events for a single deposit/spigot and merges them into global list
+   * @dev  - expects all events to be in the same token
+   * @param type - the type of module used as collateral
+   * @param symbol - the token in event
+   * @param price - the price to use for events. Generally current price for escrow and time of event for spigot
+   * @param events - the events to process
+   */
+  const mergeCollateralEvents = (type: ModuleNames, symbol: string, price: number = 0, events: CollateralEvent[]) => {
+    let totalVal = 0;
+    const newEvents: CollateralEvent[] = events.map((e: any): CollateralEvent => {
+      const value = price * e.amount;
+      if (type === SPIGOT_MODULE_NAME) {
+        // aggregate token revenue. not needed for escrow bc its already segmented by token
+        // use price at time of revenue for more accuracy
+        tokenRevenue[symbol] += value;
+      }
+      totalVal += value;
+      return {
+        type,
+        __typename: e.__typename,
+        timestamp: e.timestamp,
+        symbol: symbol || 'UNKNOWN',
+        amount: e.amount,
+        value,
+      };
+    });
+
+    collateralEvents = [...collateralEvents, ...newEvents];
+    return totalVal;
   };
+
+  //  all recent borrow/lend events
+  let creditEvents: CreditLineEvents[] = [];
+  /**
+   * @function
+   * @name mergeCollateralEvents
+   * @desc - takes all events for a single deposit/spigot and merges them into global list
+   * @dev  - expects all events to be in the same token
+   * @param type - the type of module used as collateral
+   * @param symbol - the token in event
+   * @param price - the price to use for events. Generally current price for escrow and time of event for spigot
+   * @param events - the events to process
+   */
+  const mergeCreditEvents = (symbol: string, price: number = 0, events: CreditLineEvents[]) => {
+    const newEvents: CreditLineEvents[] = events.map((e: any): CreditLineEvents => {
+      const { id, __typename, amount, timestamp, value: val } = e;
+      let value = amount * price;
+      if (__typename === 'InterestRepaidEvent') {
+        // only use value at time of repayment for repayment events
+        // use current price for all other events
+        value = val;
+      }
+
+      return {
+        id,
+        __typename,
+        timestamp,
+        symbol: symbol || 'UNKNOWN',
+        amount,
+        value,
+      };
+    });
+
+    // TODO promise.all token price fetching for better performance
+
+    creditEvents = [...creditEvents, ...newEvents];
+  };
+
+  const pageData: CreditLinePage = {
+    // metadata
+    id: lineAddress as Address,
+    start,
+    end,
+    status: creditLineService.mapStatusToString(status),
+    borrower,
+    // debt data
+    principal,
+    interest,
+    credits: credits?.reduce((obj: any, c: any) => {
+      const { deposit, drawnRate, id, lender, symbol, events, principal, interest, interestRepaid, token } = c;
+      // const currentPrice = await fetchTokenPrice(symbol, Date.now())
+      const currentPrice = 1e8;
+      mergeCreditEvents(c.token.symbol, currentPrice, events);
+      return {
+        ...obj,
+        [id]: {
+          id,
+          lender,
+          deposit,
+          drawnRate,
+          principal,
+          interest,
+          interestRepaid,
+          token,
+        },
+      };
+    }),
+    // collateral data
+    spigot: spigot
+      ? undefined
+      : {
+          revenue: tokenRevenue,
+          spigots: spigot?.spigots.reduce((obj: any, s: any): { [key: string]: Spigot } => {
+            const {
+              id,
+              token: { symbol, lastPriceUSD },
+              active,
+              contract,
+              startTime,
+              events,
+            } = s;
+            mergeCollateralEvents(SPIGOT_MODULE_NAME, symbol, lastPriceUSD, events); // normalize and save events
+            return { ...obj, [id]: { active, contract, symbol, startTime, lastPriceUSD } };
+          }, {}),
+        },
+    escrow: escrow?.id
+      ? undefined
+      : {
+          deposits: escrow.deposits.reduce((obj: any, d: any) => {
+            const {
+              id,
+              amount,
+              enabled,
+              token: { symbol },
+              events,
+            } = d;
+            // TODO promise.all token price fetching for better performance
+            // const currentUsdPrice = await fetchTokenPrice(symbol, Datre.now());
+            const currentUsdPrice = 1e8;
+            mergeCollateralEvents(ESCROW_MODULE_NAME, symbol, currentUsdPrice, events); // normalize and save events
+            return { ...obj, [id]: { symbol, currentUsdPrice, amount, enabled } };
+          }, {}),
+        },
+    // all recent events
+    collateralEvents,
+    creditEvents,
+  };
+
+  return pageData;
 }
 
-export const VaultsSelectors = {
-  selectVaultsState,
-  selectVaultsMap,
-  selectVaults,
-  selectLiveVaults,
-  selectDeprecatedVaults,
-  selectUserVaultsPositionsMap,
+export const LinesSelectors = {
+  selectLinesState,
+  selectLinesMap,
+  selectLines,
+  selectLiveLines,
+  // selectDeprecatedLines,
+  selectUserLinesPositionsMap,
   selectUserTokensMap,
   selectTokensMap,
-  selectSelectedVaultAddress,
-  selectVaultsActionsStatusMap,
-  selectVaultsStatusMap,
-  selectVaultsGeneralStatus,
-  selectSelectedVault,
-  selectSelectedVaultActionsStatusMap,
-  selectDepositedVaults,
-  selectVaultsOpportunities,
+  selectSelectedLineAddress,
+  selectLinesActionsStatusMap,
+  selectLinesStatusMap,
+  selectLinesGeneralStatus,
+  selectSelectedLine,
+  selectSelectedLineActionsStatusMap,
+  selectDepositedLines,
   selectSummaryData,
   selectRecommendations,
-  selectVaultsStatus,
-  selectVault,
-  selectExpectedTxOutcome,
-  selectExpectedTxOutcomeStatus,
+  selectLinesStatus,
+  selectLine,
+  // selectExpectedTxOutcome,
+  // selectExpectedTxOutcomeStatus,
   selectUnderlyingTokensAddresses,
 };

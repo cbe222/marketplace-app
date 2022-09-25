@@ -7,7 +7,6 @@ import {
   VaultDynamic,
   Token,
   TokenDynamicData,
-  CreditLine,
   Position,
   TransactionResponse,
   Address,
@@ -23,7 +22,12 @@ import {
   Network,
   TokenAllowance,
   Credit,
+  CreditLine,
+  CreditLinePage,
+  PositionSummary,
   GetLineArgs,
+  GetLinesArgs,
+  GetLinePageArgs,
 } from '@types';
 
 // *************** USER ***************
@@ -140,6 +144,9 @@ export interface InterestRateCreditService {
 }
 
 export interface CreditLineService {
+  getLine: (props: GetLineProps) => Promise<CreditLine>;
+  getLines: (props: GetLinesProps) => Promise<CreditLine[]>;
+  getLinePage: (props: GetLinePageProps) => Promise<CreditLinePage>;
   getCreditLineById(id: Address): Promise<CreditLine | void>
   
   addCredit: (props: AddCreditProps, dryRun: boolean) => Promise<TransactionResponse | PopulatedTransaction>;
@@ -178,8 +185,29 @@ export interface InterestRateAccrueInterestProps {
   facilityBalance: BigNumberish;
 }
 
-export interface GetCreditLinesProps {
+  // TODO change types from `any`
+  getUserLinePositions: (...args: any) => Promise<any>;
+  getExpectedTransactionOutcome: (...args: any) => Promise<any>;
+  approveDeposit: (...args: any) => Promise<any>;
+  // approveZapOut: (...args: any) => Promise<any>;
+  // signPermit: (...args: any) => Promise<any>;
+  deposit: (...args: any) => Promise<any>;
+  withdraw: (...args: any) => Promise<any>;
+  getDepositAllowance: (...args: any) => Promise<any>;
+  getWithdrawAllowance: (...args: any) => Promise<any>;
+}
+export interface GetLineProps {
   params: GetLineArgs;
+  network: Network;
+}
+
+export interface GetLinesProps {
+  params: GetLinesArgs;
+  network: Network;
+}
+
+export interface GetLinePageProps {
+  params: GetLinePageArgs;
   network: Network;
 }
 
