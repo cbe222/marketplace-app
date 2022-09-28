@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, ContractFunction, ethers, PopulatedTransaction } from 'ethers';
+import { BigNumber, ContractFunction, ethers, PopulatedTransaction } from 'ethers';
 import { BytesLike } from '@ethersproject/bytes/src.ts';
 import { Bytes, keccak256 } from 'ethers/lib/utils';
 
@@ -115,8 +115,8 @@ export class CreditLineServiceImpl implements CreditLineService {
 
   public async setRates(
     id: BytesLike,
-    drate: BigNumberish,
-    frate: BigNumberish,
+    drate: BigNumber,
+    frate: BigNumber,
     dryRun: boolean
   ): Promise<TransactionResponse | PopulatedTransaction> {
     return await this.executeContractMethod('setRates', [id, drate, frate], dryRun);
@@ -124,14 +124,14 @@ export class CreditLineServiceImpl implements CreditLineService {
 
   public async increaseCredit(
     id: BytesLike,
-    amount: BigNumberish,
+    amount: BigNumber,
     dryRun: boolean
   ): Promise<TransactionResponse | PopulatedTransaction> {
     return await this.executeContractMethod('increaseCredit', [id, amount], dryRun);
   }
 
   public async depositAndRepay(
-    amount: BigNumberish,
+    amount: BigNumber,
     dryRun: boolean
   ): Promise<TransactionResponse | PopulatedTransaction> {
     return await this.executeContractMethod('depositAndRepay', [amount], dryRun);

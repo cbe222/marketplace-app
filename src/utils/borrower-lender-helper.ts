@@ -1,4 +1,4 @@
-﻿import { BigNumberish, BigNumber, ethers } from 'ethers';
+﻿import { BigNumber, ethers } from 'ethers';
 import { BytesLike, Bytes } from '@ethersproject/bytes/src.ts';
 
 import {
@@ -50,7 +50,7 @@ export function borrowerLenderHelper(
     return (await creditLineService.close(id)).hash;
   };
 
-  const setRates = async (id: BytesLike, drate: BigNumberish, frate: BigNumberish): Promise<string> => {
+  const setRates = async (id: BytesLike, drate: BigNumber, frate: BigNumber): Promise<string> => {
     // check mutualConsentById
     const populatedTrx = await creditLineService.setRates(id, drate, frate, true);
     const borrower = await creditLineService.borrower();
@@ -64,7 +64,7 @@ export function borrowerLenderHelper(
     return (<TransactionResponse>await creditLineService.setRates(id, drate, frate, false)).hash;
   };
 
-  const increaseCredit = async (id: BytesLike, amount: BigNumberish): Promise<string> => {
+  const increaseCredit = async (id: BytesLike, amount: BigNumber): Promise<string> => {
     if (await creditLineService.isActive()) {
       throw new Error(
         `Increasing credit is not possible. reason: "The given creditLine [${props.creditLineAddress}] is not active"`

@@ -1,4 +1,4 @@
-﻿import { BigNumberish, BigNumber, ContractFunction, PopulatedTransaction } from 'ethers';
+﻿import { BigNumber, ContractFunction, PopulatedTransaction } from 'ethers';
 
 import {
   YearnSdk,
