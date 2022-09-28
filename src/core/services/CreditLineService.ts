@@ -3,8 +3,7 @@ import { BytesLike } from '@ethersproject/bytes/src.ts';
 import { Bytes, keccak256 } from 'ethers/lib/utils';
 
 import {
-  Credi
-  tLineService,
+  CreditLineService,
   YearnSdk,
   CreditLine,
   TransactionService,
