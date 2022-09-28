@@ -1,4 +1,4 @@
-import { BigNumberish, BigNumber } from 'ethers';
+import { BigNumber } from 'ethers';
 import { Bytes, BytesLike } from '@ethersproject/bytes/src.ts';
 import { PopulatedTransaction } from '@ethersproject/contracts/src.ts';
 
@@ -147,13 +147,13 @@ export interface CreditLineService {
   withdraw: (id: Bytes, amount: BigNumber) => Promise<TransactionResponse>;
   setRates: (
     id: BytesLike,
-    drate: BigNumberish,
-    frate: BigNumberish,
+    drate: BigNumber,
+    frate: BigNumber,
     dryRun: boolean
   ) => Promise<TransactionResponse | PopulatedTransaction>;
   increaseCredit: (
     id: BytesLike,
-    amount: BigNumberish,
+    amount: BigNumber,
     dryRun: boolean
   ) => Promise<TransactionResponse | PopulatedTransaction>;
   depositAndRepay: (amount: BigNumber, dryRun: boolean) => Promise<TransactionResponse | PopulatedTransaction>;
@@ -174,8 +174,8 @@ export interface CreditLineService {
 
 export interface InterestRateAccrueInterestProps {
   id: BytesLike;
-  drawnBalance: BigNumberish;
-  facilityBalance: BigNumberish;
+  drawnBalance: BigNumber;
+  facilityBalance: BigNumber;
 }
 
 export interface GetCreditLinesProps {
@@ -184,9 +184,9 @@ export interface GetCreditLinesProps {
 }
 
 export interface AddCreditProps {
-  drate: BigNumberish;
-  frate: BigNumberish;
-  amount: BigNumberish;
+  drate: BigNumber;
+  frate: BigNumber;
+  amount: BigNumber;
   token: Address;
   lender: Address;
 }
